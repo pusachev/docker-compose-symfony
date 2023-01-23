@@ -1,0 +1,105 @@
+version: '3.1'
+services:
+  php-fpm:
+    container_name: php-fpm
+    image: pusachev/docker-php-fpm:8.1
+    restart: always
+    ports:
+      - 9000:9000
+    volumes:
+      - ./config/php/xdebug.ini:/etc/php/8.1/mods-available/xdebug.ini:delegated
+      - ../src:/var/www/current/:delegated
+      - ~/.composer:/home/www/.composer:delegated
+    environment:
+      XDEBUG_ENABLED: 1
+      REDIS_ENABLED: 1
+      PHP_IDE_CONFIG: serverName=symfony.localhost
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  nginx:
+    container_name: nginx
+    image: pusachev/docker-nginx:latest
+    restart: always
+    links:
+      - php-fpm
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ../src:/var/www/current/src:delegated
+      - ./config/nginx/symfony.conf:/etc/nginx/sites-available/symfony.conf:delegated
+      - ./volumes/nginx/log:/var/log/nginx/:delegated
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    ports:
+      - 3309:3306
+    volumes:
+      - ./volumes/mysql:/var/lib/mysql:delegated
+      - ./config/mysql/init:/docker-entrypoint-initdb.d:delegated
+      - ./config/mysql/init/conf/mysqld.cnf:/etc/mysql/mysql.conf.d/mysqld.cnf:delegated
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: root
+
+  #elasticsearch:
+  #  container_name: elasticsearch
+  #  image: elasticsearch:6.8.6
+  #  environment:
+  #    - cluster.name=webserver_default
+  #    - bootstrap.memory_lock=true
+  #    - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  #  ports:
+  #    - 9200:9200
+  #  volumes:
+  #    - es-data:/usr/share/elasticsearch/data:delegated
+  #  ulimits:
+  #    memlock:
+  #      soft: -1
+  #      hard: -1
+  #    nofile:
+  #      soft: 65536
+  #      hard: 65536
+  #  mem_limit: 1G
+
+  redis:
+    container_name: redis
+    image: redis:3.2
+    restart: always
+
+  mailhog:
+    container_name: mailhog
+    image: mailhog/mailhog:latest
+    restart: always
+    volumes:
+      - ./volumes/email:/mnt/storage:delegated
+    environment:
+      - MH_STORAGE=maildir
+      - MH_MAILDIR_PATH=/mnt/storage
+    ports:
+      - 8025:8025
+
+  logrotate:
+    container_name: logrotate
+    image: tutum/logrotate:latest
+    restart: always
+    volumes:
+      - ./config/logrotate/logrotate.conf:/etc/logrotate.conf
+      - ./volumes/shared/log:/log:delegated
+volumes:
+  generated:
+  var:
+  static:
+  es-data:
+    driver: local
