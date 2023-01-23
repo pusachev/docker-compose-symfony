@@ -28,7 +28,8 @@ services:
       - 443:443
     volumes:
       - ../src:/var/www/current/src:delegated
-      - ./config/nginx/symfony.conf:/etc/nginx/sites-available/symfony.conf:delegated
+      - ./config/nginx/default:/etc/nginx/sites-enabled/default:delegated
+      - ./config/nginx/symfony.conf:/etc/nginx/sites-enabled/symfony.conf:delegated
       - ./volumes/nginx/log:/var/log/nginx/:delegated
     ulimits:
       memlock:
